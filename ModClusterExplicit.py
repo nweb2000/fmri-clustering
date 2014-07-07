@@ -10,9 +10,8 @@ def makeModMat(D):
     degrees = np.zeros(D.shape[0]) #initialize a array to hold the degree of each vertex
     for i in np.arange(D.shape[0]):
         degrees[i] = np.sum(D[i, :]) #sum the ith row to get degree of ith vertex
-
+        
     m = np.sum(degrees) #m is equal to twice the number of edges
-
     for i in np.arange(D.shape[0]):
         for j in np.arange(D.shape[1]):
             modMat[i, j] = D[i, j] - ((degrees[i] * degrees[j]) / m)
@@ -34,6 +33,7 @@ def split_cluster(D):
     
 if __name__ == "__main__":
     D = np.genfromtxt("test.txt", delimiter=',')
-    cluster = split_cluster(D)
+    B = np.dot(D.T, D)
+    cluster = split_cluster(B)
     print cluster
         
