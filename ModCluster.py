@@ -1,9 +1,10 @@
 import numpy as np
 
 def modMat(D, i, j, ki, kj, m):
-    """THIS FUNCTION IS FOR CONVENIENCE, AND IS NOT ACTUALL NEEDED
+    """THIS FUNCTION IS JUST TO SHOW HOW MODULARITY INDEX IS CALCULATED, AND IS NOT ACTUALL NEEDED
        Get the (i, j) index of the modularity matrix created by data matrix D.
-       @INPUT: D (a data matrix),
+       @INPUT: D (data matrix where the columns of D represent different nodes and the 
+    rows represent a piece of time series data for the corresponding node)D (a data matrix),
                i, j (Index of modularity matrix to access)
                ki, kj (degrees of vertex i, and vertex j)
                m (the sum of degrees for every vertex, which equals 2 * number of graph edges)"""
@@ -14,22 +15,28 @@ def implicitDegSum(D):
     """Finds the sums of the degrees of each node in the graph of the implicitly represented adjacency matrix of data matrix D"""
     degrees = np.zeros(D.shape[1])
     rowsums = np.zeros(D.shape[0]) 
-    for i in np.arange(D.shape[0]): #find the sum of each row and save it 
+    for i in np.arange(D.shape[0]): #find the sum of each row of D and save it 
         rowsums[i] = np.sum(D[i, :])
         
-    for i in np.arange(D.shape[1]):
+    for i in np.arange(D.shape[1]):   #find the sum of each row in the implicit adjacency matrix
         degrees[i] = np.dot(D[:, i], rowsums)
 
     return degrees
 
 def modEig(D, maxIter=50, start=None):
-    """Find the principle eigenvector for the implicitly represented modularity matrix of
-       data matrix D using the power method
-       @INPUT: D (data matrix where the columns of D represent different nodes and the 
-                  rows represent a piece of time series data for the corresponding node)
-               maxIter (how much iterations of power method to go through, this is currently just for testing
-                        we will use some kind of tolerence level later on...)
-               start (a vector to start the power method with, optional) """
+    """
+    Find the principle eigenvector for the implicitly represented modularity matrix of
+    data matrix D using the power method
+    @INPUT:
+    (2D numpy array) D - data matrix where the columns of D represent different nodes and the 
+    rows represent a piece of time series data for the corresponding node
+    (int) maxIter - how much iterations of power method to go through, this is currently just for testing
+     we will use some kind of tolerence level later on...
+    (numpy array) start - a vector to start the power method with, optional
+    
+    
+    TODO: Replace the iterations parameter with some sort of normalized tolerence level 
+    """
        
     #set x to the first estimate of the principle eigen vector
     if start == None:
@@ -61,17 +68,16 @@ def modEig(D, maxIter=50, start=None):
     return (x, valEst)
 
        
-def split_cluster(D):
-    """Using modularity measures, split the data matrix D into two different
-       clusters and return a vector whose ith element gives the cluster#(either 1 or -1)
-       that the corresponding vertex on the graph belongs to"""
-
-    modMat = makeModMat(D) #create the modularity matrix
-    vals, vects = np.linalg.eig(modMat) #get eigenvalues/vectors of the modularity matrix
-    eig_index = np.argmax(vals) #find the index of the largest eigenvalue
-    cluster = vects[:, eig_index] #get principle eigenvector
-    #cluster = cluster / np.absolute(cluster)
-    return cluster
+def split_cluster(D, clustList, modmat=None):
+   """
+   Using modularity measures split the cluster listed in clustList into two different clusters
+   @INPUTS:
+   (2D numpy array) D - data matrix whose columns represent different nodes of the graph while the 
+   rows represent a piece of time series data for the corresponding node
+   
+   #TODO: All that needs to be done here is to find the principle eigenvector/value and return it
+   #(or divide it by its absolute value to get the signs), either way this is the function that should be called
+   
     
 if __name__ == "__main__":
     D = np.genfromtxt("test.txt", delimiter=',')

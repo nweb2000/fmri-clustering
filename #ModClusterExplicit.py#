@@ -21,7 +21,7 @@ def modularity(modMat, clust):
     #calculate clust * modMat * clust_T
     return np.dot(np.dot(clust, modMat), clust.T)
     
-def makeModMat(A, degrees=None):
+def makeInitModMap(A, degrees=None):
     """
     Create a modularity matrix using the values from Adjacency Matrix
         A  (A should be represented by a 2D numpy array)
@@ -107,7 +107,7 @@ def splitCluster(modMat, clustList=None, degrees=None):
 if __name__ == "__main__":
     A = np.genfromtxt("test.txt", delimiter=',')
     D = np.dot(A.T, A)
-    modMat = makeModMat(D)
+    modMat = makeInitModMap(D)
     degrees = degSum(D)
 
     clusters = splitCluster(modMat)
