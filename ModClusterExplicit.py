@@ -1,5 +1,5 @@
 import numpy as np
-import ModCluster as mc
+
 
 def degSum(A):
     """
@@ -21,7 +21,7 @@ def modularity(modMat, clust):
     #calculate clust * modMat * clust_T
     return np.dot(np.dot(clust, modMat), clust.T)
     
-def makeModMat(A, degrees=None):
+def makeInitModMap(A, degrees=None):
     """
     Create a modularity matrix using the values from Adjacency Matrix
         A  (A should be represented by a 2D numpy array)
@@ -95,7 +95,7 @@ def splitCluster(modMat, clustList=None, degrees=None):
     eig_index = np.argmax(vals) #find the index of the largest eigenvalue
     p_eig = vects[:, eig_index] #get principle eigenvector
     
-    print modularity(B, p_eig / np.abs(p_eig))
+   # print modularity(B, p_eig / np.abs(p_eig))
 
     clust_1 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] > 0])
     clust_2 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] < 0])
@@ -107,7 +107,7 @@ def splitCluster(modMat, clustList=None, degrees=None):
 if __name__ == "__main__":
     A = np.genfromtxt("test.txt", delimiter=',')
     D = np.dot(A.T, A)
-    modMat = makeModMat(D)
+    modMat = makeInitModMap(D)
     degrees = degSum(D)
 
     clusters = splitCluster(modMat)
@@ -117,16 +117,15 @@ if __name__ == "__main__":
 
     b1 = splitCluster(modMat, c2[0], degrees)
     b2 = splitCluster(modMat, c2[1], degrees)
-    b3  = splitCluster(modMat, b2[0], degrees)
-    b4 = splitCluster(modMat, b2[1], degrees)
-
+    
+    print clusters[0], " " , clusters[1]
     print "\nc1\n"
-    print c1[0] + 1, " " ,c1[1] + 1
+    print c1[0], " " ,c1[1]
     print "\nc2\n"
-    print c2[0] + 1, " " ,c2[1] + 1
+    print c2[0], " " ,c2[1]
     
 
     print "\nb1\n"
-    print b1[0] + 1, " " ,b1[1] + 1
+    print b1[0], " " ,b1[1]
     print "\nc2\n"
-    print b2[0] + 1, " " ,b2[1] + 1 
+    print b2[0], " " ,b2[1]
