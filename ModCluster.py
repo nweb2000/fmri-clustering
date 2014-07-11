@@ -69,26 +69,27 @@ def modEig(D, clustList=None, degrees=None, maxIter=50, start=None):
         Dg = D
         Kg = degrees
 
+    
     Dg_sum = np.sum(Dg, 1)
     Kg_sum = np.sum(Kg)
-                      
+    
     while iterations < maxIter:  #do the power method for maxIter iterations
         Dgx = np.dot(Dg, x) #get Dg . X
         Kgx = np.dot(Kg, x)
         eigEst = np.zeros(Dg.shape[1])
 
         eigEst = np.dot(Dg.T, Dgx) - (np.dot(Kg.T, Kgx)/m)
-
-
         
-        #for i in np.arange(Dg.shape[1]):  #calculate eigEst
-        alpha = (Kg[i] / m) * Kg #get alpha vector
-        l = np.dot(Dg[:, i], Dg_sum) - ((Kg[i]/m) * Kg_sum)
-        eigEst[i] = np.dot(Dg[:, i], Dgx) - np.dot(alpha, x) - l
-           #term1 = np.dot(Dg[:, i], Dgx - (Dg_sum * x[i]))
-           #term2 = (Kg[i] / m) * ((Kg_sum * x[i]) - np.dot(Kg, x))
-           #eigEst[i] = term1 + term2  #calc ith element of eigEst
-        #all of eigEst has been calculated, end outer for loop    
+        if clustList.size != D.shape[1]: #if clustList is a subset of entire graph
+            modifier = np.zeros(clustList.size)
+            for i in np.arange(clustList.size):
+                modifier[i] = np.dot(Dg[:, i], Dg_sum)
+
+            modifier = modifier - ((Kg * Kg_sum) / m)
+          #  modifier = modifier * x
+            
+
+            eigEst = eigEst - modifier
 
         valEst = np.amax(x) #get infinity norm of x (just the max element in this case)
         if valEst != 0:
@@ -96,7 +97,7 @@ def modEig(D, clustList=None, degrees=None, maxIter=50, start=None):
         else:
             x = eigEst
         iterations = iterations + 1
-
+    
     return (x, valEst)
 
        
@@ -124,7 +125,7 @@ def splitCluster(D, clustList=None, degrees=None):
    return clusters
     
 if __name__ == "__main__":
-    D = np.genfromtxt("t3.txt", delimiter=',')
+    D = np.genfromtxt("test.txt", delimiter=',')
     
     eig = modEig(D)
     
