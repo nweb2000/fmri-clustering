@@ -23,7 +23,7 @@ def implicitDegSum(D):
 
     return degrees
 
-def modEig(D, clustList=None, degrees=None, maxIter=100, start=None):
+def modEig(D, clustList=None, degrees=None, maxIter=50, start=None):
     """
     Find the principle eigenvector for the implicitly represented modularity matrix of
     data matrix D using the power method
@@ -74,12 +74,20 @@ def modEig(D, clustList=None, degrees=None, maxIter=100, start=None):
                       
     while iterations < maxIter:  #do the power method for maxIter iterations
         Dgx = np.dot(Dg, x) #get Dg . X
+        Kgx = np.dot(Kg, x)
         eigEst = np.zeros(Dg.shape[1])
+
+        eigEst = np.dot(Dg.T, Dgx) - (np.dot(Kg.T, Kgx)/m)
+
+
         
-        for i in np.arange(Dg.shape[1]):  #calculate eigEst
-            term1 = np.dot(Dg[:, i], Dgx - (Dg_sum * x[i]))
-            term2 = (Kg[i] / m) * ((Kg_sum * x[i]) - np.dot(Kg, x))
-            eigEst[i] = term1 + term2  #calc ith element of eigEst
+        #for i in np.arange(Dg.shape[1]):  #calculate eigEst
+        alpha = (Kg[i] / m) * Kg #get alpha vector
+        l = np.dot(Dg[:, i], Dg_sum) - ((Kg[i]/m) * Kg_sum)
+        eigEst[i] = np.dot(Dg[:, i], Dgx) - np.dot(alpha, x) - l
+           #term1 = np.dot(Dg[:, i], Dgx - (Dg_sum * x[i]))
+           #term2 = (Kg[i] / m) * ((Kg_sum * x[i]) - np.dot(Kg, x))
+           #eigEst[i] = term1 + term2  #calc ith element of eigEst
         #all of eigEst has been calculated, end outer for loop    
 
         valEst = np.amax(x) #get infinity norm of x (just the max element in this case)

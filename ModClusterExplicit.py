@@ -69,7 +69,7 @@ def makeGroupMat(modMat, clustList, degrees):
     return groupMat
 
 
-def splitCluster(modMat, clustList=None, degrees=None):
+def splitCluster(modMat, clustList=None):
     """
     Split the group of graph nodes (whose indices in the adjacency matrix are listed in clustList), into
     two distinct groups
@@ -77,7 +77,6 @@ def splitCluster(modMat, clustList=None, degrees=None):
     @INPUT
     (numpy array) clustList - A list of indices for the group of graph nodes to split
     (2D numpy array) modMat - the modularity matrix for the graph
-    (numpy array) degrees - an array of degree sums for each graph node (this is just the row sums of adjacency matrix)
     @OUTPUT
         Two lists of graph node indices which show how clustList was split.
         These are stored in a python tuple.
@@ -105,34 +104,21 @@ def splitCluster(modMat, clustList=None, degrees=None):
     return clusters
     
 if __name__ == "__main__":
-    A = np.genfromtxt("test.txt", delimiter=',')
-    D = np.dot(A.T, A)
-    modMat = makeInitModMap(D)
-    degrees = degSum(D)
+    D = np.genfromtxt("test.txt", delimiter=',')
+    A = np.dot(D.T, D)
+    modMat = makeInitModMap(A)
+    degrees = degSum(A)
+
+    clust1 = splitCluster(modMat)
+    clust2 = mc.splitCluster(D)
+
+    clust3 = splitCluster(modMat, clust1[0])
+    clust4 = mc.splitCluster(D, clust2[1])
+
+    groupMat = makeGroupMat
+
+
+    print "clust1:\n", clust1
+    print "clust2:\n", clust2
     
-    eig = mc.modEig(A)
-    eigb = mcb.modEig(A)
-    vals, vects = np.linalg.eig(modMat) #get eigenvalues/vectors of the modularity matrix
-    eig_index = np.argmax(vals) #find the index of the largest eigenvalue
-    p_eig = vects[:, eig_index] #get principle eigenvector
     
-    print "eigB\n ", eigb
-    print "EIG1\n ", eig[0]
-    print p_eig
-    print eig[0] / p_eig
-    
-    """
-    clustList = np.array([0, 1, 2, 3, 4, 5, 7, 10])
-    groupMat = makeGroupMat(modMat, clustList, degrees) 
-    eig2 = mc.modEig(A, clustList)
-    print "MODMAT", modMat
-    print "GROUP MAT", groupMat
-    
-    vals2, vects2 = np.linalg.eig(groupMat) #get eigenvalues/vectors of the modularity matrix
-    eig_index2 = np.argmax(vals2) #find the index of the largest eigenvalue
-    p_eig2 = vects2[:, eig_index2] #get principle eigenvector
-    
-    print "EIG2",eig2[0]
-    print "P_EIG2", p_eig2
-    print eig2[0] / p_eig2
-    """
