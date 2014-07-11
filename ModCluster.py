@@ -23,7 +23,7 @@ def implicitDegSum(D):
 
     return degrees
 
-def modEig(D, clustList=None, degrees=None, maxIter=30, start=None):
+def modEig(D, clustList=None, degrees=None, maxIter=100, start=None):
     """
     Find the principle eigenvector for the implicitly represented modularity matrix of
     data matrix D using the power method
@@ -54,17 +54,17 @@ def modEig(D, clustList=None, degrees=None, maxIter=30, start=None):
     else:
         x = start 
 
-    if degrees == None:    
+    if degrees == None: #if degrees not supplied calculate them    
         degrees = implicitDegSum(D)
         
     m = np.sum(degrees) #m is 2 * the number of edges (or the sum of all edge weights)        
     iterations = 0
     
-    if clustList.size != D.shape[1]: 
-        Dg = np.array([D[:, i] for i in clustList]) #pull out the columns of the group
-        Dg = Dg.T
-        Kg = np.array([degrees[i] for i in clustList]) #get the degree sum vector for the group
-        
+    if clustList.size != D.shape[1]: #if clustList is a subset of the entire graph
+        Dg = np.zeros((D.shape[0], clustList.size))  #create a new matrix made up of the columns in the group
+        for i in np.arange(clustList.size):
+            Dg[:, i] = D[:, clustList[i]]
+        Kg = np.array([degrees[i] for i in clustList]) #make a new array containing the degrees sums of the nodes in cluster
     else:
         Dg = D
         Kg = degrees
@@ -116,14 +116,19 @@ def splitCluster(D, clustList=None, degrees=None):
    return clusters
     
 if __name__ == "__main__":
-    D = np.genfromtxt("test.txt", delimiter=',')
+    D = np.genfromtxt("t3.txt", delimiter=',')
     
-    clusters = splitCluster(D)
-
-  
-    c1 = splitCluster(D, clusters[0])
-    c2 = splitCluster(D, clusters[1])
-
+    eig = modEig(D)
+    
+    vals, vects = np.linalg.eig(np.dot(D.T, D)) #get eigenvalues/vectors of the modularity matrix
+    eig_index = np.argmax(vals) #find the index of the largest eigenvalue
+    p_eig = vects[:, eig_index] #get principle eigenvector
+    
+   
+    print eig[0]
+    print p_eig
+    print eig[0] / p_eig[0]
+    """
     b1 = splitCluster(D, c2[0])
     b2 = splitCluster(D, c2[1])
     
@@ -138,4 +143,4 @@ if __name__ == "__main__":
     print b1[0], " " ,b1[1]
     print "\nc2\n"
     print b2[0], " " ,b2[1]
-     
+    """
