@@ -1,6 +1,5 @@
 import numpy as np
-import ModCluster as mc
-import ModCluster_backup as mcb
+
 def degSum(A):
     """
     Find the degree sums of adjacecy matrix A (this is equal to the row sums)
@@ -59,8 +58,8 @@ def makeGroupMat(modMat, clustList):
             if i == j:
                 b = 0
                 for k in np.arange(clustList.size):
-                    b = b + modMat[clustList[i], clustList[k]] #see Newman's paper for details
-               
+                   b = b + modMat[clustList[i], clustList[k]] #see Newman's modularity paper for details
+                   
                 groupMat[i, j] = modMat[clustList[i], clustList[j]] - b
             else:
                 groupMat[i, j] = modMat[clustList[i], clustList[j]]
@@ -68,14 +67,16 @@ def makeGroupMat(modMat, clustList):
     return groupMat
 
 
-def splitCluster(modMat, clustList=None):
+def splitCluster(modMat=None, clustList=None, A=None):
     """
     Split the group of graph nodes (whose indices in the adjacency matrix are listed in clustList), into
     two distinct groups
     NOTE: Passing in only modMat implies a first time split
+    NOTE: If only the adjacency matrix is passed in, it will generate a modularity matrix
     @INPUT
     (numpy array) clustList - A list of indices for the group of graph nodes to split
     (2D numpy array) modMat - the modularity matrix for the graph
+    (2D numpy array) A - the adjacency matrix
     @OUTPUT
         Two lists of graph node indices which show how clustList was split.
         These are stored in a python tuple.
@@ -83,15 +84,17 @@ def splitCluster(modMat, clustList=None):
 
     TODO: Need to check clustList to make sure that it is not empty, and other general error checking
     """
+    if modMat==None and A != None:
+        modMat = makeInitModMat(A)
+    
     if clustList == None:  #if this is a first time split
         clustList = np.arange(modMat.shape[0])
         B = modMat
     else:
-        B  = makeGroupMat(modMat, clustList)
-
+        B = makeGroupMat(modMat, clustList)
+       
     vals, vects = np.linalg.eig(B) #get eigenvalues/vectors of the modularity matrix
-    nz_vals = [i for i in vals if i != 0] #take out zero valued eigen values
-    eig_index = np.argmax(nz_vals) #find the index of the largest eigenvalue
+    eig_index = np.argmax(vals) #find the index of the largest eigenvalue
     p_eig = vects[:, eig_index] #get principle eigenvector
    
     #print modularity(B, p_eig / np.abs(p_eig))
@@ -104,25 +107,18 @@ def splitCluster(modMat, clustList=None):
     return clusters
     
 if __name__ == "__main__":
-    D = np.genfromtxt("test.txt", delimiter=',')
-    A = np.dot(D.T, D)
+    A = np.genfromtxt("test.txt", delimiter=',')
     modMat = makeInitModMap(A)
     degrees = degSum(A)
 
     clust1 = splitCluster(modMat)
-    clust2 = mc.splitCluster(D)
 
-    clust3 = splitCluster(modMat, clust1[1])
-    clust4 = mc.splitCluster(D, clust2[0])
+    clust3 = splitCluster(modMat, clust1[0])
+    clust4 = splitCluster(modMat, clust1[1])
 
-    B = makeGroupMat(modMat, clust1[1])
-    vals, vects = np.linalg.eig(B) #get eigenvalues/vectors of the modularity matrix
-    eig_index = np.argmax(vals) #find the index of the largest eigenvalue
-    p_eig = vects[:, eig_index] #get principle eigenvector
-    print p_eig
+    print clust1
 
-
-    print "clust1:\n", clust3
-    print "clust2:\n", clust4
+    print "clust3:\n", clust3
+    print "clust4:\n", clust4
     
     

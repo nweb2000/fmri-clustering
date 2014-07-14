@@ -23,7 +23,7 @@ def implicitDegSum(D):
 
     return degrees
 
-def modEig(D, clustList=None, degrees=None, maxIter=50, start=None):
+def modEig(D, clustList=None, degrees=None, maxIter=100, start=None):
     """
     Find the principle eigenvector for the implicitly represented modularity matrix of
     data matrix D using the power method
@@ -35,8 +35,8 @@ def modEig(D, clustList=None, degrees=None, maxIter=50, start=None):
     rows represent a piece of time series data for the corresponding node
     (numpy array) clustList - A list of indices for the data matrix columns which specify what graph
     nodes (columns in the data matrix D) are in the cluster that is to be split
-    (numpy array) degrees - a array of degree sums for each graph node(row sums of the implicit
-     adjaceny matrix
+    (numpy array) degrees - a array of degree sums for the ENTIRE graph (row sums of the implicit
+     adjaceny matrix)
     (int) maxIter - how much iterations of power method to go through, this is currently just for testing
      we will use some kind of tolerence level later on...
     (numpy array) start - a vector to start the power method with, optional
@@ -44,10 +44,7 @@ def modEig(D, clustList=None, degrees=None, maxIter=50, start=None):
     
     TODO: Replace the iterations parameter with some sort of normalized tolerence level 
     """
-    if clustList == None:
-        clustList = np.arange(D.shape[1])  #the cluster is just the entire graph
-       
-    #set x to the first estimate of the principle eigen vector
+    #set x(value to multiple by in power method) to the first estimate of the principle eigen vector
     if start == None:
         x = np.zeros(clustList.size)
         x[0] = 1 #initialize x_0 as a unit vector, with all elements = to zero except for the first
@@ -61,41 +58,36 @@ def modEig(D, clustList=None, degrees=None, maxIter=50, start=None):
     iterations = 0
     
     if clustList.size != D.shape[1]: #if clustList is a subset of the entire graph
-        Dg = np.zeros((D.shape[0], clustList.size))  #create a new matrix made up of the columns in the group
+        Dg = np.zeros((D.shape[0], clustList.size))  #create a new data matrix made up of the columns in the group
         for i in np.arange(clustList.size):
             Dg[:, i] = D[:, clustList[i]]
-        Kg = np.array([degrees[i] for i in clustList]) #make a new array containing the degrees sums of the nodes in cluster
-    else:
-        Dg = D
-        Kg = degrees
-
-    
-    Dg_sum = np.sum(Dg, 1)
-    Kg_sum = np.sum(Kg)
-    
-    while iterations < maxIter:  #do the power method for maxIter iterations
-        Dgx = np.dot(Dg, x) #get Dg . X
-        Kgx = np.dot(Kg, x)
-        eigEst = np.zeros(Dg.shape[1])
-
-        eigEst = np.dot(Dg.T, Dgx) - (np.dot(Kg.T, Kgx)/m)
-        
-        if clustList.size != D.shape[1]: #if clustList is a subset of entire graph
-            modifier = np.zeros(clustList.size)
-            for i in np.arange(clustList.size):
-                modifier[i] = np.dot(Dg[:, i], Dg_sum)
-
-            modifier = modifier - ((Kg * Kg_sum) / m)
-          #  modifier = modifier * x
             
-
-            eigEst = eigEst - modifier
-
-        valEst = np.amax(x) #get infinity norm of x (just the max element in this case)
-        if valEst != 0:
-            x = eigEst / valEst  #set the next value of x and scale it
+        Kg = np.array([degrees[i] for i in clustList]) #make a new array containing the degrees sums of the nodes in cluster
+        
+        #Pre compute some values for the power method on the group matrix
+        modifier = np.dot(Dg.T, np.sum(Dg, 1)) - ((Kg * np.sum(Kg)) / m)  #calculate the modifier values to apply to diagnols of group mod mat
+                                                  
+        #We will use an estimated 1-norm value of the group modularity matrix to force the matrix to be a positive definite,
+        #this way we obtain the corresponding eigenvector for dominent positive eigenvalue (since this might be negative without shifting the matrix)
+        maxmod_index = np.argmax(np.abs(modifier)) #find the index of the maximum modifier value
+                                                  
+        #Estimate 1 - norm as the sum of the abs values of the row with the largest corresponding modifier
+        shift = modifier[maxmod_index] + np.sum(np.abs(Dg[maxmod_index, :]))
+                                    
+    while iterations < maxIter:  #do the power method for maxIter iterations
+        
+        if clustList.size != D.shape[1]: #if clustList is a subset of the entire graph
+            Dgx = np.dot(Dg, x) #get Dg . X
+            Kgx = np.dot(Kg, x) #get Kg . X
+            eigEst = np.dot(Dg.T, Dgx) - ((Kg * Kgx) / m) - (modifier * x) + (shift * x) #calculate eigenvector estimate
         else:
-            x = eigEst
+            Dx = np.dot(D, x) 
+            Kx = np.dot(degrees, x) 
+            eigEst = np.dot(D.T, Dx) - ((degrees * Kx) / m) #calculate eigenvector estimate
+                                                               
+        valEst = np.amax(x) #estimate the dominint eigenvalue as the largest value in x
+        x = eigEst / np.linalg.norm(eigEst)   #set the next value of x and scale it
+        
         iterations = iterations + 1
     
     return (x, valEst)
