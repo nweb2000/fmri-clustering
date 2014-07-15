@@ -1,15 +1,38 @@
 import numpy as np
 
-def modMat(D, i, j, ki, kj, m):
-    """THIS FUNCTION IS JUST TO SHOW HOW MODULARITY INDEX IS CALCULATED, AND IS NOT ACTUALL NEEDED
-       Get the (i, j) index of the modularity matrix created by data matrix D.
-       @INPUT: D (data matrix where the columns of D represent different nodes and the 
-    rows represent a piece of time series data for the corresponding node)D (a data matrix),
-               i, j (Index of modularity matrix to access)
-               ki, kj (degrees of vertex i, and vertex j)
-               m (the sum of degrees for every vertex, which equals 2 * number of graph edges)"""
+def modularity(D, split, clustList=None, degrees=None):
+    """
+    Calculate the modularity increase value obtained when the clustering described in split is applied
+    on the graph of data matrix/group matrix Dg
+    @INPUTS:
+    (2d numpy array) D - data matrix of the entire graph
+    (numpy array) split - A array with values of either 1 or -1, where the sign indicates which group the ith element in Dg belongs to
+    (numpy array) clustList - A list of indices for the data matrix columns which specify what graph
+    nodes (columns in the data matrix D) are in the cluster we want to find the modularity of
+    (numpy array)  - an array whose ith entry is the degree of the graph node indicated by the ith column in Dg
+    @OUTPUTS:
+    The unnormalized modularity value
+    """
+    if degrees == None: #if degrees not supplied calculate them    
+        degrees = implicitDegSum(D)
+
+    if clustList != None and clustList.size != D.shape[1]: #if clustList exists and is a subset of the entire graph
+        sg = getSubGraph(D, clustList, degrees) #get back a tuple containing group subgraph and group degrees
+        Dg = sg[0] 
+        Kg = sg[1] 
+    else:
+        Dg = D
+        Kg = degrees
+
+    m = np.sum(degrees)
     
-    return np.dot(D[:, i], D[:, j]) - ((ki * kj) / m)
+    #Find the product of the modularity matrix of Dg, (denoted as Mg) and split, then find the dot product of the result and split
+     
+    modifier = np.dot(Dg.T, np.sum(Dg, 1)) - ((Kg * np.sum(Kg)) / m)  #calculate the modifier values to apply to diagnols of Mg
+    Dgs = np.dot(Dg, split) 
+    Kgs = np.dot(Kg, split) 
+    Mgs = np.dot(Dg.T, Dgs) - ((Kg * Kgs) / m) - (modifier * split) #calculate product of Dg and split
+    return np.dot(split, Mgs)  #calculate and return the modularity, divide this value by 2*m to normalize
 
 def implicitDegSum(D):
     """Finds the sums of the degrees of each node in the graph of the implicitly represented adjacency matrix of data matrix D"""
@@ -23,7 +46,38 @@ def implicitDegSum(D):
 
     return degrees
 
-def modEig(D, clustList=None, degrees=None, maxIter=100, start=None):
+def getSubGraph(D, clustList, degrees=None):
+    """
+    Get the subgraph of data matrix D containing only the nodes indicated in clustList
+    @INPUTS
+    D - The entire data matrix
+    clustList - a list of graph node ids whose columns should be included in Dg
+    degrees - a list of the degrees of the entire graph, if degrees is not passed in only the subgraph is returned,
+    if it is passed in, a tuple of both the group subgraph and its respective degrees are returned
+    @OUTPUTS
+    A subgraph of D which contains the columns of D indicated in clustList, or a tuple containing the subgraph of D
+    and and array of the respective degrees of that subgraph
+    """
+    if clustList == None:
+        Dg = D
+    else:
+        Dg = np.zeros((D.shape[0], clustList.size))  #create a new data matrix made up of the columns in the group
+        for i in np.arange(clustList.size):
+            Dg[:, i] = D[:, clustList[i]]
+
+    if degrees != None:
+        if clustList != None:
+            Kg = np.array([degrees[i] for i in clustList])
+        else:
+            Kg = degrees
+            
+        out = (Dg, Kg)
+    else:
+        out = Dg
+        
+    return out
+
+def modEig(D, clustList=None, degrees=None, precision=0.95, start=None):
     """
     Find the principle eigenvector for the implicitly represented modularity matrix of
     data matrix D using the power method
@@ -37,32 +91,32 @@ def modEig(D, clustList=None, degrees=None, maxIter=100, start=None):
     nodes (columns in the data matrix D) are in the cluster that is to be split
     (numpy array) degrees - a array of degree sums for the ENTIRE graph (row sums of the implicit
      adjaceny matrix)
-    (int) maxIter - how much iterations of power method to go through, this is currently just for testing
-     we will use some kind of tolerence level later on...
+    (float) precision - how much precision is needed with the power method, should be a value between (0, 1)
     (numpy array) start - a vector to start the power method with, optional
-    
-    
-    TODO: Replace the iterations parameter with some sort of normalized tolerence level 
+    @OUTPUT:
+    A python tuple, the first element contains the leadin eigenvector estimate, while the second element
+    contains the estimated leading eigenvalue
     """
-    #set x(value to multiple by in power method) to the first estimate of the principle eigen vector
+    #set x(value to multiply by in power method) to the first estimate of the principle eigen vector
     if start == None:
-        x = np.zeros(clustList.size)
+        if clustList != None:
+            x = np.zeros(clustList.size)
+        else:
+            x = np.zeros(D.shape[1])
         x[0] = 1 #initialize x_0 as a unit vector, with all elements = to zero except for the first
     else:
-        x = start 
+        x = start
 
     if degrees == None: #if degrees not supplied calculate them    
         degrees = implicitDegSum(D)
         
     m = np.sum(degrees) #m is 2 * the number of edges (or the sum of all edge weights)        
-    iterations = 0
+    iterations = 0 #this is just for testing
     
-    if clustList.size != D.shape[1]: #if clustList is a subset of the entire graph
-        Dg = np.zeros((D.shape[0], clustList.size))  #create a new data matrix made up of the columns in the group
-        for i in np.arange(clustList.size):
-            Dg[:, i] = D[:, clustList[i]]
-            
-        Kg = np.array([degrees[i] for i in clustList]) #make a new array containing the degrees sums of the nodes in cluster
+    if clustList != None and clustList.size != D.shape[1]: #if clustList exists and is a subset of the entire graph
+        sg = getSubGraph(D, clustList, degrees) #get back a tuple containing group subgraph and group degrees
+        Dg = sg[0] 
+        Kg = sg[1] #make a new array containing the degrees sums of the nodes in cluster
         
         #Pre compute some values for the power method on the group matrix
         modifier = np.dot(Dg.T, np.sum(Dg, 1)) - ((Kg * np.sum(Kg)) / m)  #calculate the modifier values to apply to diagnols of group mod mat
@@ -73,75 +127,67 @@ def modEig(D, clustList=None, degrees=None, maxIter=100, start=None):
                                                   
         #Estimate 1 - norm as the sum of the abs values of the row with the largest corresponding modifier
         shift = modifier[maxmod_index] + np.sum(np.abs(Dg[maxmod_index, :]))
-                                    
-    while iterations < maxIter:  #do the power method for maxIter iterations
+    else: #we are splitting the entire graph
+        Dg = D
+        Kg = degrees
+        modifier = 0
+        shift = 0
         
-        if clustList.size != D.shape[1]: #if clustList is a subset of the entire graph
-            Dgx = np.dot(Dg, x) #get Dg . X
-            Kgx = np.dot(Kg, x) #get Kg . X
-            eigEst = np.dot(Dg.T, Dgx) - ((Kg * Kgx) / m) - (modifier * x) + (shift * x) #calculate eigenvector estimate
-        else:
-            Dx = np.dot(D, x) 
-            Kx = np.dot(degrees, x) 
-            eigEst = np.dot(D.T, Dx) - ((degrees * Kx) / m) #calculate eigenvector estimate
-                                                               
-        valEst = np.amax(x) #estimate the dominint eigenvalue as the largest value in x
+    converged = False #whether or not we have converged to desired precision
+
+    while not converged:  #do the power method until we converge
+        Dgx = np.dot(Dg, x) #get Dg . X
+        Kgx = np.dot(Kg, x) #get Kg . X
+        eigEst = np.dot(Dg.T, Dgx) - ((Kg * Kgx) / m) - (modifier * x) + (shift * x) #calculate eigenvector estimate 
+        
+        valEst = np.dot(x, eigEst) / np.dot(x, x) #estimate eigen value using rayleigh quotient
+
+        if np.linalg.norm(eigEst - (valEst * x)) <= precision: #if our desired precision has been reached
+            converged = True #we hast converged unto the eigen vector, hazaaaah!
+          
         x = eigEst / np.linalg.norm(eigEst)   #set the next value of x and scale it
-        
-        iterations = iterations + 1
+            
+        iterations = iterations + 1 #this is just for testing
+    #print "ITER", iterations
     
     return (x, valEst)
 
        
 def splitCluster(D, clustList=None, degrees=None):
-   """
-   Using modularity measures split the cluster listed in clustList into two different clusters
-   @INPUTS:
-      (2D numpy array) D - data matrix whose columns represent different nodes of the graph while the 
-      rows represent a piece of time series data for the corresponding node
-      (numpy array) clustList - A list of indices for the data matrix columns which specify what graph
-      nodes are in the cluster that is to be split
-      (numpy array) degrees - a array of degree sums for each graph node(row sums of the implicit
-      adjaceny matrix
-   @OUPUT:
-      Two lists of graph node indeces which show how clustList was split,
-      these are stored in a python tuple
-   """
-   if clustList==None:
-       clustList = np.arange(D.shape[1])
-       
-   p_eig = modEig(D, clustList, degrees)[0]
-   clust_1 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] > 0])
-   clust_2 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] < 0])
-   clusters = (clust_1, clust_2)
-   return clusters
+    """
+    Using modularity measures split the cluster listed in clustList into two different clusters
+    @INPUTS:
+    (2D numpy array) D - data matrix whose columns represent different nodes of the graph while the 
+    rows represent a piece of time series data for the corresponding node
+    (numpy array) clustList - A list of indices for the data matrix columns which specify what graph
+    nodes are in the cluster that is to be split
+    (numpy array) degrees - a array of degree sums for each graph node(row sums of the implicit
+    adjaceny matrix
+    @OUPUT:
+    Two lists of graph node indices which show how clustList was split,
+    these are stored in a python tuple
+    """
+    if clustList != None and clustList.size == 0:
+        print "Cannot split an empty partition!"
+    
+    if degrees == None:
+        degrees = implicitDegSum(D)
+
+    if clustList == None:
+        clustList = np.arange(D.shape[1])
+
+    p_eig = modEig(D, clustList, degrees)[0]
+    
+    split = p_eig / np.abs(p_eig)
+    
+    clust_1 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] > 0])
+    clust_2 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] < 0])
+    clusters = (clust_1, clust_2)
+
+    return clusters
     
 if __name__ == "__main__":
     D = np.genfromtxt("test.txt", delimiter=',')
-    
-    eig = modEig(D)
-    
-    vals, vects = np.linalg.eig(np.dot(D.T, D)) #get eigenvalues/vectors of the modularity matrix
-    eig_index = np.argmax(vals) #find the index of the largest eigenvalue
-    p_eig = vects[:, eig_index] #get principle eigenvector
-    
+    cluster = splitCluster(D)
+    print cluster
    
-    print eig[0]
-    print p_eig
-    print eig[0] / p_eig[0]
-    """
-    b1 = splitCluster(D, c2[0])
-    b2 = splitCluster(D, c2[1])
-    
-    print clusters[0], " " , clusters[1]
-    print "\nc1\n"
-    print c1[0], " " ,c1[1]
-    print "\nc2\n"
-    print c2[0], " " ,c2[1]
-    
-
-    print "\nb1\n"
-    print b1[0], " " ,b1[1]
-    print "\nc2\n"
-    print b2[0], " " ,b2[1]
-    """

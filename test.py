@@ -10,33 +10,18 @@ def func():
  
     clust1 = mce.splitCluster(modMat)
     clust2 = mc.splitCluster(D)
+
+    clust3 = mce.splitCluster(modMat, clust1[0])
+    clust4 = mce.splitCluster(modMat, clust1[1])
+    clust5 = mc.splitCluster(D, clust2[0])
+    clust6 = mc.splitCluster(D, clust2[1])
     
-    groupMat = mce.makeGroupMat(modMat, clust1[0])
-    print "vals", np.linalg.norm(groupMat, 1)
-    vals, vects = np.linalg.eig(groupMat) #get eigenvalues/vectors of the modularity matrix
-    eig_index = np.argmax(vals) #find the index of the largest eigenvalue
-    eigs = vects[:, eig_index] #get principle eigenvector
-
-    eigs2 = mc.modEig(D, clust1[0])
-    print vals[eig_index]
-
-   # print vals[eig_index]
-   # print vals[eig_index] / eigs2[1]
+    clust7 = mce.splitCluster(modMat, clust3[0])
+    clust8 = mce.splitCluster(modMat, clust3[1])
+    clust9 = mc.splitCluster(D, clust5[0])
+    clust10 = mc.splitCluster(D, clust5[1])
 
     
-
-    
-    print "REAL ", eigs
-    print "Implicit", eigs2
-    print (eigs / abs(eigs)) / (eigs2[0] / abs(eigs2[0]))
-
-    print "TEST\n\n"
-    print np.dot(groupMat, eigs2[0]) / (eigs2[0] * eigs2[1])
-    print eigs2[0] * eigs2[1]
-
-    
-
-
-
+  
 if __name__ == "__main__":
     func()

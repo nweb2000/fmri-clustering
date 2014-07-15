@@ -72,7 +72,7 @@ def splitCluster(modMat=None, clustList=None, A=None):
     Split the group of graph nodes (whose indices in the adjacency matrix are listed in clustList), into
     two distinct groups
     NOTE: Passing in only modMat implies a first time split
-    NOTE: If only the adjacency matrix is passed in, it will generate a modularity matrix
+    NOTE: If only the adjacency matrix is passed in, it will generate a modularity matrix on its own
     @INPUT
     (numpy array) clustList - A list of indices for the group of graph nodes to split
     (2D numpy array) modMat - the modularity matrix for the graph
@@ -84,6 +84,9 @@ def splitCluster(modMat=None, clustList=None, A=None):
 
     TODO: Need to check clustList to make sure that it is not empty, and other general error checking
     """
+    if clustList != None and clustList.size == 0:
+        print "Cannot split an empty partition!"
+        
     if modMat==None and A != None:
         modMat = makeInitModMat(A)
     
@@ -97,7 +100,7 @@ def splitCluster(modMat=None, clustList=None, A=None):
     eig_index = np.argmax(vals) #find the index of the largest eigenvalue
     p_eig = vects[:, eig_index] #get principle eigenvector
    
-    #print modularity(B, p_eig / np.abs(p_eig))
+    print "modularity explicit ", modularity(B, p_eig / np.abs(p_eig))
 
     clust_1 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] > 0])
     clust_2 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] < 0])
