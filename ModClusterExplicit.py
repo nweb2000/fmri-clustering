@@ -100,7 +100,7 @@ def splitCluster(modMat=None, clustList=None, A=None):
     eig_index = np.argmax(vals) #find the index of the largest eigenvalue
     p_eig = vects[:, eig_index] #get principle eigenvector
    
-    print "modularity explicit ", modularity(B, p_eig / np.abs(p_eig))
+    #print "modularity explicit ", modularity(B, p_eig / np.abs(p_eig))
 
     clust_1 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] > 0])
     clust_2 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] < 0])
@@ -110,18 +110,29 @@ def splitCluster(modMat=None, clustList=None, A=None):
     return clusters
     
 if __name__ == "__main__":
-    A = np.genfromtxt("test.txt", delimiter=',')
-    modMat = makeInitModMap(A)
+    B = np.genfromtxt("test.txt", delimiter=',')
+    A = np.dot(B.T, B)
+    D = makeInitModMap(A)
     degrees = degSum(A)
 
-    clust1 = splitCluster(modMat)
+    c = splitCluster(D)
+    clust1 = c[0]
+    clust2 = c[1]
 
-    clust3 = splitCluster(modMat, clust1[0])
-    clust4 = splitCluster(modMat, clust1[1])
-
-    print clust1
-
-    print "clust3:\n", clust3
-    print "clust4:\n", clust4
+    cl = splitCluster(D, clust1)
+    cl2= splitCluster(D, clust2)
+    a = cl[0]
+    b = cl[1]
+    c = cl2[0]
+    d = cl2[1]
     
+    e = splitCluster(D, a)
+    f = splitCluster(D, b)
+    g = splitCluster(D, c)
+    h = splitCluster(D, d)
+
+    print "CLUST A\n\n", e
+    print "\n\nCLUST B\n\n", f
+    print "\n\nCLUST C\n\n", g
+    print "\n\nCLUST D\n\n", h
     

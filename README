@@ -1,0 +1,55 @@
+*************ModCluster.py REFERENCE*******************
+For a general summary on modularity measures see MEJ Newman's 
+paper "Modularity and Community Structures in Networks"
+
+-----------------------------------------------------------
+Multiplying implicit modularity matrix by a vectorx
+-----------------------------------------------------------
+The modularity matrix M is represented implicitly by using the data matrix D, 
+where each column of D is a node in the graph, and the rows of D represent the
+data of for that specific node. If we are trying to split a cluster of D, then 
+the equations are the same, but we will use a subgraph of D, (called Dg in code) 
+which contains the columns of the graph nodes that are in that cluster
+
+The degree of the ith node is denoted as k_i,
+m = total # of edges in graph, and '.' denotes a dotproduct
+The ij index of M is defined by Newman as: 
+    D[:, i] . D[:, j] - ((k_i * k_j) / 2m) - (KR_ij * Mi_sum) 
+KR_ij is the Kronecker symbol (KR_ij = 1 if i==j, else KR_ij = 0)  
+Mi_sum == the sum of the ith row in M, (without the subtraction of this term)
+ 
+For brevity, from now on i'll refer to (k_i * k_j) / 2m as C_ij and
+will refer to the term (KR_ii * Mi_sum) as l_i (called the 'modifier' in code)
+
+For the ith node in the graph, its corresponding l_i value is:
+l_i = (D[:, i] . D[:, 1] - C_i1) + .... + (D[:, i] . D[:, n] - C_in)
+    = D[:, i] . (D[:, 1] + ... + D[:, n]) - (k_i/2m)(k_1 + ... + k_n)
+    = (D . D_sum) - (k_i * k_sum) / 2m
+D_sum = vector whose ith element contains the sum of the ith column of D
+k_sum = sum of the degrees of all nodes in cluster
+So we can find all l values and store them in vector L by doing:
+(D_Transpose * D_sum) - (K * k_sum) / 2m
+where K is a vector whose ith element gives the degree of the ith node 
+
+To do power method, we multiply M by vector X = [X_1 ... X_n]
+Without using the l_i values, the ith element of the vector made from MX is
+MX_i = (D[:, i] . D[:, 1] - C_i1) * X_1 + ... + (D[:, i] . D[:, n] - C_in) * X_n
+     = (D[:, i] . (D*X)) - (k_i * (K . X)) / 2m
+So the entire result is:
+MX = D_Transpose * (D*X) - ((K) * (K_Transpose . X)) / 2m
+If we use the l_i values, the only difference is subtracting l_i * X_i from the 
+ith element in the MX, so using the l_i values gives us the same formula above,
+just subtract l_i * X_i for ith element
+
+------------------------------------------------------------------
+The "shift" term in ModEig function
+------------------------------------------------------------------
+The power method will give us the eigenvector which corresponds to the eigenvalue
+of the greatest magnitude. For Newman's algorithm, we require the eigenvector
+which corresponds to the largest positive eigenvalue. Rather than doing the power
+method on M, we do the power method on M + eI, where E is the dominent eigen val
+and I is the identity matrix. The eigenvalues of M + EI will be equal to the 
+eigen vals of M, only increased by E, making the most positive eigen value of M 
+the dominent eigen val of M + EI. M and M + EI will both have the same eigenvects
+
+ 

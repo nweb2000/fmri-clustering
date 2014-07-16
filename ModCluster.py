@@ -1,4 +1,5 @@
 import numpy as np
+np.set_printoptions(threshold=np.nan)
 
 def modularity(D, split, clustList=None, degrees=None):
     """
@@ -77,6 +78,43 @@ def getSubGraph(D, clustList, degrees=None):
         
     return out
 
+
+def powerMethod(Dg, Kg, start, m, modifier, precision, shift=0):
+    """
+    Does the powerMethod on Dg to find the dominent eigen vector
+    @INPUTS:
+    Dg - The data matrix, or a subgraph of the data matrix
+    Kg - A array whose ith entry contains the degree of the graph node represented by the ith
+    column in Dg
+    start - the initial vector to start the power method with
+    m - a constant value equal to 2 * (the sum of the degrees of the nodes in the entire graph)
+    precision - how good of an estimate is needed, this value should be between (0, 1)
+    shift - the shift value to use, shifting the matrix helps find the most positive eigen vector
+    @OUTPUTS:
+    A python tuple, the first element contains the dominent eigenvector estimate, while the second element
+    contains the estimated dominent eigenvalue
+    """
+    converged = False #whether or not we have converged to desired precision
+    x = start
+    while not converged:  #do the power method until we converge
+        Dgx = np.dot(Dg, x) #get Dg . X
+        Kgx = np.dot(Kg, x) #get Kg . X
+        eigEst = np.dot(Dg.T, Dgx) - ((Kg * Kgx) / m) - (modifier * x) + (shift * x) #calculate eigenvector estimate 
+        
+        valEst = np.dot(x, eigEst) / np.dot(x, x) #estimate eigen value using rayleigh quotient
+
+        if np.linalg.norm(eigEst - (valEst * x)) <= precision: #if our desired precision has been reached
+            converged = True #we hast converged unto the eigen vector, hazaaaah!
+
+        n = np.linalg.norm(eigEst)
+        if n != 0:
+            x = eigEst / np.linalg.norm(eigEst)   #set the next value of x and scale it
+        else:
+            x = eigEst
+       
+    return (eigEst, valEst)
+
+    
 def modEig(D, clustList=None, degrees=None, precision=0.95, start=None):
     """
     Find the principle eigenvector for the implicitly represented modularity matrix of
@@ -97,15 +135,16 @@ def modEig(D, clustList=None, degrees=None, precision=0.95, start=None):
     A python tuple, the first element contains the leadin eigenvector estimate, while the second element
     contains the estimated leading eigenvalue
     """
-    #set x(value to multiply by in power method) to the first estimate of the principle eigen vector
+    #Set initial (the first guess for the eigenvector in the power method
     if start == None:
         if clustList != None:
-            x = np.zeros(clustList.size)
+            initial = np.random.random_integers(1, 100, clustList.size)#initial = np.zeros(clustList.size)
+            initial = initial / np.linalg.norm(initial)
         else:
-            x = np.zeros(D.shape[1])
-        x[0] = 1 #initialize x_0 as a unit vector, with all elements = to zero except for the first
+            initial = np.random.random_integers(1, 100, D.shape[1])#np.zeros(D.shape[1])
+            initial = initial / np.linalg.norm(initial)
     else:
-        x = start
+        initial = start
 
     if degrees == None: #if degrees not supplied calculate them    
         degrees = implicitDegSum(D)
@@ -117,41 +156,17 @@ def modEig(D, clustList=None, degrees=None, precision=0.95, start=None):
         sg = getSubGraph(D, clustList, degrees) #get back a tuple containing group subgraph and group degrees
         Dg = sg[0] 
         Kg = sg[1] #make a new array containing the degrees sums of the nodes in cluster
-        
-        #Pre compute some values for the power method on the group matrix
         modifier = np.dot(Dg.T, np.sum(Dg, 1)) - ((Kg * np.sum(Kg)) / m)  #calculate the modifier values to apply to diagnols of group mod mat
-                                                  
-        #We will use an estimated 1-norm value of the group modularity matrix to force the matrix to be a positive definite,
-        #this way we obtain the corresponding eigenvector for dominent positive eigenvalue (since this might be negative without shifting the matrix)
-        maxmod_index = np.argmax(np.abs(modifier)) #find the index of the maximum modifier value
-                                                  
-        #Estimate 1 - norm as the sum of the abs values of the row with the largest corresponding modifier
-        shift = modifier[maxmod_index] + np.sum(np.abs(Dg[maxmod_index, :]))
     else: #we are splitting the entire graph
         Dg = D
         Kg = degrees
         modifier = 0
-        shift = 0
-        
-    converged = False #whether or not we have converged to desired precision
 
-    while not converged:  #do the power method until we converge
-        Dgx = np.dot(Dg, x) #get Dg . X
-        Kgx = np.dot(Kg, x) #get Kg . X
-        eigEst = np.dot(Dg.T, Dgx) - ((Kg * Kgx) / m) - (modifier * x) + (shift * x) #calculate eigenvector estimate 
-        
-        valEst = np.dot(x, eigEst) / np.dot(x, x) #estimate eigen value using rayleigh quotient
-
-        if np.linalg.norm(eigEst - (valEst * x)) <= precision: #if our desired precision has been reached
-            converged = True #we hast converged unto the eigen vector, hazaaaah!
-          
-        x = eigEst / np.linalg.norm(eigEst)   #set the next value of x and scale it
+    vect, val = powerMethod(Dg, Kg, initial, m, modifier, precision) #use power method to get dominent eigen vector
+    if val < 0: #if the dominint eigen vector is negative, do the power method again, shifting the matrix by val/2
+        vect, val = powerMethod(Dg, Kg, initial, m, modifier, precision, np.abs(val)/2) #this will get us the positive leading eigenvector
             
-        iterations = iterations + 1 #this is just for testing
-    #print "ITER", iterations
-    
-    return (x, valEst)
-
+    return (vect, val)
        
 def splitCluster(D, clustList=None, degrees=None):
     """
@@ -177,8 +192,7 @@ def splitCluster(D, clustList=None, degrees=None):
         clustList = np.arange(D.shape[1])
 
     p_eig = modEig(D, clustList, degrees)[0]
-    
-    split = p_eig / np.abs(p_eig)
+      # split = p_eig / np.abs(p_eig)
     
     clust_1 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] > 0])
     clust_2 = np.array([clustList[x] for x in np.arange(p_eig.size) if p_eig[x] < 0])
@@ -188,6 +202,24 @@ def splitCluster(D, clustList=None, degrees=None):
     
 if __name__ == "__main__":
     D = np.genfromtxt("test.txt", delimiter=',')
-    cluster = splitCluster(D)
-    print cluster
-   
+    c = splitCluster(D)
+    clust1 = c[0]
+    clust2 = c[1]
+
+    cl = splitCluster(D, clust1)
+    cl2= splitCluster(D, clust2)
+    a = cl[0]
+    b = cl[1]
+    c = cl2[0]
+    d = cl2[1]
+ 
+    e = splitCluster(D, a)
+    f = splitCluster(D, b)
+    g = splitCluster(D, c)
+    h = splitCluster(D, d)
+
+    print "CLUST A\n\n", e
+    print "\n\nCLUST B\n\n", f
+    print "\n\nCLUST C\n\n", g
+    print "\n\nCLUST D\n\n", h
+
